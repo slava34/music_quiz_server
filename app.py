@@ -25,6 +25,12 @@ class Quizes(db.Model):
     level = db.Column(db.String(80), nullable=False)
     count = db.Column(db.Integer, nullable=False)
 
+class Answers(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    Name =   db.Column(db.String(80), nullable=False)
+    quiz_id = db.Column(db.Integer, db.ForeignKey('quizes.id'), nullable=False)
+    right = db.Column(db.Boolean, nullable=False)
+
 
 @app.route('/hi')
 def hello_world():  # put application's code here
