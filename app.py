@@ -1,7 +1,8 @@
 from flask import Flask
-from flask import j
+from flask import jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from serializers import user_schema, users_schema, quizes_schema, quize_schema
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://slava:123456789@127.0.0.1:5432/vk_music_test'
@@ -10,52 +11,69 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 
+# from models import User, Quizes, Answers, Questions
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    second_name = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=True)
+    second_name = db.Column(db.String(80), unique=True, nullable=True)
+    email = db.Column(db.String(120), unique=True, nullable=True)
+    vk_id = db.Column(db.String(80), nullable=False)
 
     def __repr__(self):
         return '<User %r>' % self.username
+
 
 class Quizes(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     level = db.Column(db.String(80), nullable=False)
-    count = db.Column(db.Integer, nullable=False)
+    count = db.Column(db.Integer, nullable=True)
+
+    @property
+    def questions(self):
+        return Questions.query.filter_by(quiz_id=self.id).all()
+
 
 class Answers(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    Name =   db.Column(db.String(80), nullable=False)
-    quiz_id = db.Column(db.Integer, db.ForeignKey('quizes.id'), nullable=False)
+    name = db.Column(db.String(80), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     right = db.Column(db.Boolean, nullable=False)
 
 
-@app.route('/hi')
-def hello_world():  # put application's code here
-    admin = User(username='admin',second_name='admin1', email='admin@example.com')
-    db.session.add(admin)
-    db.session.commit()
-    return 'hi'
+class Questions(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False)
+    quiz_id = db.Column(db.Integer, db.ForeignKey('quizes.id'), nullable=False)
+    music_id = db.Column(db.String(80), nullable=False)
 
-@app.route('/user')
-def get_users():  # put application's code here 
+    @property
+    def answers(self):
+        return Answers.query.filter_by(question_id=self.id).all()
+
+
+@app.route('/user/<string:vk_id>')
+def hello_world(vk_id):
+    user = User.query.filter_by(vk_id=vk_id).first()
+    return jsonify(user_schema.dump(user))
+
+
+@app.route('/users')
+def get_users():
     users = User.query.all()
-    res = [] 
-    for user in users: 
-        res.append({ 
-            'id': user.id, 
-            'username':user.username,
-            'second_name':user.second_name, 
-            'email': user.email
-        }) 
-    print("\nResponse:") 
-    print(res)
-    print('\n')
-    return jsonify(res)
+    return jsonify(users_schema.dump(users))
 
 
+@app.route('/quizes', methods=['GET'])
+def get_quizes():
+    quizes = Quizes.query.all()
+    return jsonify(quizes_schema.dump(quizes))
+
+
+@app.route('/quiz/<int:quiz_id>', methods=['GET'])
+def get_user(quiz_id):
+    quiz = Quizes.query.filter_by(id=quiz_id).first()
+    return jsonify(quize_schema.dump(quiz))
 
 
 if __name__ == '__main__':
